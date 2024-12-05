@@ -4,6 +4,7 @@ import board
 from PIL import Image, ImageDraw, ImageFont
 from adafruit_rgb_display import st7789
 from maze_generator import MazeGenerator
+import random
 
 WALL = 1
 PATH = 0
@@ -15,7 +16,7 @@ class MazeGame:
         self.cell_size = 240 // self.grid_size
         self.current_stage = 1
 
-        # 디스플레이 설정 (기존 코드와 동일)
+        # 디스플레이 설정
         cs_pin = DigitalInOut(board.CE0)
         dc_pin = DigitalInOut(board.D25)
         reset_pin = DigitalInOut(board.D24)
@@ -52,12 +53,20 @@ class MazeGame:
                        self.button_5, self.button_6]:
             button.direction = Direction.INPUT
 
+        # 색상 초기화
+        self.wall_color = (0, 0, 0)  # 초기 벽 색상
+        self.path_color = (200, 200, 200)  # 초기 통로 색상
+
         self.reset_game_state()
 
     def reset_game_state(self):
         generator = MazeGenerator(self.grid_size, self.grid_size)
         self.maze = generator.generate_maze()
         
+        # 색상 무작위화
+        self.wall_color = self.random_color()
+        self.path_color = self.random_color()
+
         self.player_x = 1
         self.player_y = 1
         self.goal_x = self.grid_size - 2
@@ -69,10 +78,13 @@ class MazeGame:
             self.grid_size = 11 + (self.current_stage - 1) * 2
             self.cell_size = 240 // self.grid_size
         else:
-            # 4단계 이후 난이도 요소 추가
             self.add_obstacles()
             self.add_time_limit()
     
+    def random_color(self):
+        """무작위 RGB 색상 생성."""
+        return tuple(random.randint(50, 255) for _ in range(3))
+
     def add_obstacles(self):
         # 장애물 추가 로직
         self.obstacle_positions = [(3, 5), (7, 8), (11, 13)]
@@ -80,7 +92,6 @@ class MazeGame:
     def add_time_limit(self):
         # 시간 제한 추가 로직
         self.time_limit = 60  # 60초
-
 
     def draw_next_stage_prompt(self):
         # 다음 스테이지 선택 화면 그리기
@@ -100,32 +111,6 @@ class MazeGame:
         
         self.disp.image(self.image)
 
-        def draw_maze(self):
-            for y, row in enumerate(self.maze):
-                for x, cell in enumerate(row):
-                    color = (0, 0, 0) if cell == WALL else (200, 200, 200)
-                    self.draw.rectangle(
-                        (
-                            x * self.cell_size,
-                            y * self.cell_size,
-                            (x + 1) * self.cell_size - 1,
-                            (y + 1) * self.cell_size - 1,
-                        ),
-                        fill=color,
-                    )
-            
-            # 장애물 그리기
-            if self.current_stage > 4:
-                for x, y in self.obstacle_positions:
-                    self.draw.rectangle(
-                        (
-                            x * self.cell_size,
-                            y * self.cell_size,
-                            (x + 1) * self.cell_size - 1,
-                            (y + 1) * self.cell_size - 1,
-                        ),
-                        fill=(255, 0, 0)
-                    )
     def handle_stage_selection(self):
         while True:
             if not self.button_5.value:  # #5 버튼 (아니오)
@@ -173,7 +158,7 @@ class MazeGame:
     def draw_maze(self):
         for y, row in enumerate(self.maze):
             for x, cell in enumerate(row):
-                color = (0, 0, 0) if cell == WALL else (200, 200, 200)
+                color = self.wall_color if cell == WALL else self.path_color
                 self.draw.rectangle(
                     (
                         x * self.cell_size,
@@ -232,7 +217,3 @@ class MazeGame:
             self.draw.text((10, 130), f"Time: {elapsed_time:.1f}s", font=self.font, fill=(255, 255, 255))
             self.disp.image(self.image)
             time.sleep(3)
-
-if __name__ == "__main__":
-    game = MazeGame()
-    game.run()
